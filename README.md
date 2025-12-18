@@ -17,12 +17,12 @@ SUS uses 10 items with a 1–5 scale:
 - Dependencies:
   - pandas
   - openpyxl
-
-## Install: 
+- Install: 
 ```bash
 pip install pandas openpyxl
 ```
-Input Format
+## Input Format
+
 Export responses from Google Form to CSV (Form Responses).
 The script expects 10 SUS columns labeled like:
 
@@ -35,9 +35,7 @@ The script expects 10 SUS columns labeled like:
 10. ...
 
 It supports answers as:
-
 numeric 1..5, or
-
 text Likert (Indonesian/English), e.g. Sangat Setuju, Setuju, etc.
 
 ## Usage
