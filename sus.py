@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import sys
 import re
 import pandas as pd
@@ -7,15 +6,10 @@ from pathlib import Path
 
 
 def find_sus_columns(columns):
-    """
-    Cari kolom Q1..Q10 berdasarkan prefix "1.", "2.", ... "10."
-    """
     sus_cols = []
     for i in range(1, 11):
-        # paling umum: kolom diawali "1." dst
         matches = [c for c in columns if str(c).strip().startswith(f"{i}.")]
         if not matches:
-            # fallback: kalau ada spasi aneh atau format beda tapi masih mengandung "i."
             matches = [c for c in columns if f"{i}." in str(c)]
         if not matches:
             raise ValueError(
@@ -27,29 +21,19 @@ def find_sus_columns(columns):
 
 
 def to_likert_1_5(x):
-    """
-    Konversi nilai jawaban ke angka 1..5.
-    Mendukung:
-      - angka (1..5)
-      - string yang mengandung angka 1..5
-      - teks Likert ID/EN
-    """
     if pd.isna(x):
         return np.nan
 
-    # sudah numeric
     if isinstance(x, (int, float, np.integer, np.floating)):
         return float(x)
 
     s = str(x).strip()
-    # ambil digit 1-5 pertama yang berdiri sendiri
     m = re.search(r"\b([1-5])\b", s)
     if m:
         return float(m.group(1))
 
     s_low = s.lower()
 
-    # mapping Likert Indonesia/English (kalau kamu pakai opsi teks)
     mapping = {
         "sangat tidak setuju": 1,
         "tidak setuju": 2,
@@ -70,15 +54,8 @@ def to_likert_1_5(x):
 
 
 def compute_sus(df, sus_cols):
-    """
-    Hitung SUS:
-      - item ganjil (1,3,5,7,9): score = jawaban - 1
-      - item genap  (2,4,6,8,10): score = 5 - jawaban
-      - SUS = (sum scores) * 2.5
-    """
     sus_numeric = df[sus_cols].applymap(to_likert_1_5)
 
-    # validasi nilai harus 1..5
     invalid = (~sus_numeric.apply(lambda c: c.between(1, 5))).sum().sum()
     missing_rows = int(sus_numeric.isna().any(axis=1).sum())
 
@@ -111,17 +88,13 @@ def main():
 
     df = pd.read_csv(csv_path)
 
-    # 1) deteksi kolom Q1..Q10
     sus_cols = find_sus_columns(df.columns)
 
-    # 2) hitung SUS
     sus_score, sus_numeric = compute_sus(df, sus_cols)
 
-    # 3) gabungkan hasil
     df_out = df.copy()
     df_out["SUS_Score"] = sus_score.round(2)
 
-    # 4) ringkasan
     summary = {
         "Jumlah responden": int(len(df_out)),
         "SUS rata-rata": float(df_out["SUS_Score"].mean()),
@@ -134,8 +107,6 @@ def main():
     }
     summary_df = pd.DataFrame(list(summary.items()), columns=["Metrik", "Nilai"])
 
-    # 5) rata-rata per item (opsional, bagus untuk analisis)
-    # kontribusi SUS (0..4)
     odd_scores = sus_numeric.iloc[:, [0, 2, 4, 6, 8]] - 1
     even_scores = 5 - sus_numeric.iloc[:, [1, 3, 5, 7, 9]]
     adj = pd.concat([odd_scores, even_scores], axis=1)
@@ -156,7 +127,6 @@ def main():
         "Rata-rata kontribusi SUS (0-4)"
     ].round(3)
 
-    # 6) export
     out_csv = csv_path.with_name(csv_path.stem + "_SUS.csv")
     out_xlsx = csv_path.with_name(csv_path.stem + "_SUS.xlsx")
 
@@ -166,7 +136,6 @@ def main():
         item_summary.to_excel(writer, index=False, sheet_name="Rata2_per_item")
         df_out.to_excel(writer, index=False, sheet_name="Data+SUS")
 
-    # 7) print hasil ringkas
     print("\n=== RINGKASAN SUS ===")
     for k, v in summary.items():
         if isinstance(v, float):
